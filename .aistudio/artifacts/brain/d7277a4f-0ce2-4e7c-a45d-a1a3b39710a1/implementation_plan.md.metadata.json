@@ -1,0 +1,6 @@
+{
+  "summary": "Kế hoạch triển khai toàn diện cho Web học từ vựng tiếng Anh theo Đặc tả v4: Quản lý người dùng và Admin phê duyệt truy cập, xác thực OTP linh hoạt, thuật toán SRS Anki 4 mức đánh giá, tra cứu từ điển và tạo bài đọc qua Gemini API, nhập CSV/dán bảng, và giao diện xanh dương tối giản hỗ trợ Dark Mode.",
+  "updatedAt": "2026-10-14T07:22:47.200786775Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

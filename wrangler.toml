@@ -1,0 +1,14 @@
+# Cloudflare Pages & D1 Configuration for SmartVocab.io
+name = "smartvocab"
+compatibility_date = "2024-04-01"
+pages_build_output_dir = "dist"
+
+# Native Cloudflare D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "smartvocab-db"
+database_id = "smartvocab-db"
+
+# Default environment variables for Cloudflare Pages
+[vars]
+ADMIN_EMAIL = "huyhoangpham387@gmail.com"

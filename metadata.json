@@ -1,0 +1,6 @@
+{
+  "name": "VocabSpaced - Học Từ Vựng Tiếng Anh SRS",
+  "description": "Web học từ vựng tiếng Anh đa người dùng với cơ chế phê duyệt tài khoản, thuật toán lặp lại ngắt quãng (SRS), tra từ AI và tạo bài đọc ngữ cảnh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
