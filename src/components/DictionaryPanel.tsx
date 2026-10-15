@@ -62,9 +62,9 @@ export const DictionaryPanel: React.FC<DictionaryPanelProps> = ({
           definition_en: sense.definition_en,
           phonetic: sense.phonetic || result!.phonetic,
           part_of_speech: sense.pos,
-          synonyms: sense.synonyms.map(s => (typeof s === 'string' ? s : s.word)),
-          antonyms: sense.antonyms,
-          example: sense.examples[0] || '',
+          synonyms: Array.isArray(sense.synonyms) ? sense.synonyms.map(s => (typeof s === 'string' ? s : s.word)) : [],
+          antonyms: Array.isArray(sense.antonyms) ? sense.antonyms : [],
+          example: Array.isArray(sense.examples) && sense.examples.length > 0 ? sense.examples[0] : '',
           group_name: result!.lemma || result!.term,
         }),
       });
@@ -224,16 +224,16 @@ export const DictionaryPanel: React.FC<DictionaryPanelProps> = ({
                       </p>
                     )}
 
-                    {sense.examples && sense.examples.length > 0 && (
+                    {Array.isArray(sense.examples) && sense.examples.length > 0 && (
                       <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
                         <span className="font-semibold text-slate-400 block mb-0.5">Ví dụ:</span>
                         {sense.examples[0]}
                       </div>
                     )}
 
-                    {(sense.synonyms.length > 0 || sense.antonyms.length > 0) && (
+                    {((Array.isArray(sense.synonyms) && sense.synonyms.length > 0) || (Array.isArray(sense.antonyms) && sense.antonyms.length > 0)) && (
                       <div className="flex flex-wrap gap-3 text-xs text-slate-500 pt-1">
-                        {sense.synonyms.length > 0 && (
+                        {Array.isArray(sense.synonyms) && sense.synonyms.length > 0 && (
                           <span>
                             Đồng nghĩa:{' '}
                             <strong className="text-slate-700 dark:text-slate-300">
@@ -241,7 +241,7 @@ export const DictionaryPanel: React.FC<DictionaryPanelProps> = ({
                             </strong>
                           </span>
                         )}
-                        {sense.antonyms.length > 0 && (
+                        {Array.isArray(sense.antonyms) && sense.antonyms.length > 0 && (
                           <span>
                             Trái nghĩa:{' '}
                             <strong className="text-slate-700 dark:text-slate-300">

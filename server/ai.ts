@@ -138,7 +138,12 @@ Chỉ trả về định dạng JSON hợp lệ tuân theo cấu trúc sau:
       "antonyms": ["antonym"]
     }
   ]
-}`;
+}
+LƯU Ý QUAN TRỌNG:
+- synonyms phải LÀ MỘT MẢNG CÁC OBJECT có chứa key "word", TUYỆT ĐỐI KHÔNG ĐƯỢC LÀ MẢNG CHUỖI. Nếu không có từ đồng nghĩa, hãy trả về mảng rỗng [].
+- antonyms phải là một mảng chuỗi.
+- word_family phải là một mảng chuỗi.
+`;
 
     const { text, modelUsed } = await this.generateWithFallback(prompt);
     const cleaned = cleanJsonText(text);
