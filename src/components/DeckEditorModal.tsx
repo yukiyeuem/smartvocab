@@ -199,19 +199,19 @@ export const DeckEditorModal: React.FC<DeckEditorModalProps> = ({
     current.part_of_speech = sense.pos || current.part_of_speech;
     current.definition_en = sense.definition_en || current.definition_en;
 
-    if (sug.word_family && sug.word_family.length > 0) {
+    if (Array.isArray(sug.word_family) && sug.word_family.length > 0) {
       current.group_name = sug.word_family.join(', ');
     } else if (sug.group_name || sug.lemma) {
       current.group_name = sug.group_name || sug.lemma;
     }
 
-    if (sense.examples && sense.examples.length > 0) {
+    if (Array.isArray(sense.examples) && sense.examples.length > 0) {
       current.example = sense.examples[0];
     }
-    if (sense.synonyms && sense.synonyms.length > 0) {
+    if (Array.isArray(sense.synonyms) && sense.synonyms.length > 0) {
       current.synonyms = sense.synonyms.map((s: any) => (typeof s === 'string' ? s : s.word)).join('; ');
     }
-    if (sense.antonyms && sense.antonyms.length > 0) {
+    if (Array.isArray(sense.antonyms) && sense.antonyms.length > 0) {
       current.antonyms = sense.antonyms.join('; ');
     }
 
@@ -720,7 +720,7 @@ export const DeckEditorModal: React.FC<DeckEditorModalProps> = ({
 
                             {/* Đồng nghĩa / Trái nghĩa */}
                             <div className="flex flex-wrap gap-4 pt-1.5 border-t border-slate-100 dark:border-slate-700 text-[11px]">
-                              {aiSuggestions[idx]!.senses[0]?.synonyms?.length > 0 && (
+                              {Array.isArray(aiSuggestions[idx]!.senses[0]?.synonyms) && aiSuggestions[idx]!.senses[0]?.synonyms.length > 0 && (
                                 <span>
                                   Đồng nghĩa:{' '}
                                   <strong
@@ -731,7 +731,7 @@ export const DeckEditorModal: React.FC<DeckEditorModalProps> = ({
                                   </strong>
                                 </span>
                               )}
-                              {aiSuggestions[idx]!.senses[0]?.antonyms?.length > 0 && (
+                              {Array.isArray(aiSuggestions[idx]!.senses[0]?.antonyms) && aiSuggestions[idx]!.senses[0]?.antonyms.length > 0 && (
                                 <span>
                                   Trái nghĩa:{' '}
                                   <strong

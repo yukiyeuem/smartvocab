@@ -1126,7 +1126,12 @@ Trả về kết quả chuẩn định dạng JSON duy nhất không kèm markdo
       "antonyms": ["từ trái nghĩa 1"]
     }
   ]
-}`;
+}
+LƯU Ý QUAN TRỌNG:
+- synonyms phải LÀ MỘT MẢNG CÁC OBJECT có chứa key "word", TUYỆT ĐỐI KHÔNG ĐƯỢC LÀ MẢNG CHUỖI. Nếu không có từ đồng nghĩa, hãy trả về mảng rỗng [].
+- antonyms phải là một mảng chuỗi.
+- word_family phải là một mảng chuỗi.
+`;
 
       // Call Gemini API via native Edge fetch
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
