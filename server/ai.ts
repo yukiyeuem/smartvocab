@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import dotenv from 'dotenv';
 import { db } from './db';
 
@@ -56,11 +56,14 @@ export class AiProvider {
     if (!apiKey) {
       throw new Error('Chưa cấu hình GEMINI_API_KEY trên máy chủ.');
     }
-    if (!this.client) {
       this.client = new GoogleGenAI({
         apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
       });
-    }
     return this.client;
   }
 
@@ -78,12 +81,16 @@ export class AiProvider {
     let lastError: any = null;
 
     for (const model of CANDIDATE_MODELS) {
+      // Attempt 1: with responseMimeType
       try {
         const response = await client.models.generateContent({
           model,
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW,
+            },
           },
         });
 
@@ -93,7 +100,23 @@ export class AiProvider {
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`[AI] Model ${model} failed with: ${err.message || err}. Trying next fallback...`);
+        console.warn(`[AI] Model ${model} with responseMimeType failed (${err.message || err}). Trying unconstrained prompt...`);
+      }
+
+      // Attempt 2: without responseMimeType if 503/demand spike occurred
+      try {
+        const response = await client.models.generateContent({
+          model,
+          contents: prompt,
+        });
+
+        const text = response.text?.trim() || '';
+        if (text) {
+          return { text, modelUsed: model };
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[AI] Model ${model} fallback failed: ${err.message || err}.`);
       }
     }
 

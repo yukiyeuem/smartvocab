@@ -171,12 +171,13 @@ export const DeckEditorModal: React.FC<DeckEditorModalProps> = ({
     if (!termToLookup) return;
     setAiLoadingIdx(index);
     try {
-      const res = await apiRequest<{ success: boolean; data: DictionaryLookupResult }>('/api/dictionary/lookup', {
+      const res = await apiRequest<any>('/api/dictionary/lookup', {
         method: 'POST',
         body: JSON.stringify({ term: termToLookup }),
       });
-      if (res.data) {
-        setAiSuggestions(prev => ({ ...prev, [index]: res.data }));
+      const data: DictionaryLookupResult = res.data || (res.senses ? res : null);
+      if (data) {
+        setAiSuggestions(prev => ({ ...prev, [index]: data }));
       }
     } catch {
       // quiet fallback

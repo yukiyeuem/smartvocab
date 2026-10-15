@@ -27,6 +27,7 @@ export default function App() {
     return 'system';
   });
 
+  const [guestTab, setGuestTab] = useState<'landing' | 'dictionary'>('landing');
   // Decks list state
   const [decks, setDecks] = useState<Deck[]>([]);
 
@@ -157,6 +158,11 @@ export default function App() {
       <Header
         currentTab={currentTab}
         onSelectTab={(tab) => {
+          if (!user) {
+            if (tab === 'dictionary') setGuestTab('dictionary');
+            else setGuestTab('landing');
+            return;
+          }
           if (tab === 'study') {
             handleStartStudy();
           } else {
@@ -180,83 +186,133 @@ export default function App() {
             <p className="text-xs text-slate-400">Đang khởi tạo phiên làm việc...</p>
           </div>
         ) : !user ? (
-          /* Public Guest Landing Page (FR-AU-01) */
-          <div className="py-12 md:py-20 max-w-3xl mx-auto text-center space-y-8">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-full text-xs font-semibold text-blue-700 dark:text-blue-300">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Nền tảng Học Từ vựng SRS Anki & AI Gemini</span>
-            </div>
-
-            <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-                Ghi nhớ từ vựng tiếng Anh <br className="hidden sm:inline" />
-                <span className="text-blue-600 dark:text-blue-400">
-                  khoa học và lâu bền hơn
-                </span>
-              </h1>
-              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
-                Ứng dụng thuật toán lặp lại ngắt quãng (Spaced Repetition), kết hợp tra từ điển thông minh và sinh bài đọc ngữ cảnh thực tế từ Google Gemini.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                onClick={() => setIsAuthOpen(true)}
-                className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-semibold shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 group"
-              >
-                <span>Đăng nhập OTP / Xin cấp quyền</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-
-              <a
-                href="/api/import/template"
-                download
-                className="px-5 py-3.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4 text-slate-400" />
-                <span>Xem mẫu file CSV</span>
-              </a>
-            </div>
-
-            {/* Feature Highlights Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-10 text-left">
-              <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
-                  <Brain className="w-5 h-5" />
+          guestTab === 'dictionary' ? (
+            /* Guest AI Dictionary Trial */
+            <div className="space-y-6">
+              <div className="bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-3xl p-5 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-sm text-sky-800 dark:text-sky-200">
+                  <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white">Chế độ trải nghiệm Tra từ Gemini AI</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Bạn có thể tra từ không giới hạn với AI. Để tạo bộ thẻ và lưu trữ cá nhân, hãy đăng nhập.
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
-                  Thuật toán SRS Anki 4 nút
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Lập lịch ôn tập ngắt quãng tối ưu theo múi giờ địa phương, hỗ trợ đầy đủ phím tắt và hoàn tác (Undo).
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setGuestTab('landing')}
+                    className="px-4 py-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    Về trang chủ
+                  </button>
+                  <button
+                    onClick={() => setIsAuthOpen(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all"
+                  >
+                    Đăng nhập / Đăng ký
+                  </button>
+                </div>
+              </div>
+
+              <DictionaryPanel
+                decks={decks}
+                onCardAddedToDeck={() => setIsAuthOpen(true)}
+              />
+            </div>
+          ) : (
+            /* Public Guest Landing Page (FR-AU-01) */
+            <div className="py-12 md:py-20 max-w-3xl mx-auto text-center space-y-8">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-full text-xs font-semibold text-blue-700 dark:text-blue-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Nền tảng Học Từ vựng SRS Anki & AI Gemini</span>
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+                  Ghi nhớ từ vựng tiếng Anh <br className="hidden sm:inline" />
+                  <span className="text-blue-600 dark:text-blue-400">
+                    khoa học và lâu bền hơn
+                  </span>
+                </h1>
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed">
+                  Ứng dụng thuật toán lặp lại ngắt quãng (Spaced Repetition), kết hợp tra từ điển thông minh và sinh bài đọc ngữ cảnh thực tế từ Google Gemini.
                 </p>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
-                  Tra từ & Bài đọc Gemini AI
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tự động điền nghĩa, phân loại từ, phiên âm IPA và sinh đoạn văn ngữ cảnh lồng ghép đúng các từ vựng đang học.
-                </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => setIsAuthOpen(true)}
+                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-semibold shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 group"
+                >
+                  <span>Đăng nhập OTP / Xin cấp quyền</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+
+                <button
+                  onClick={() => setGuestTab('dictionary')}
+                  className="px-5 py-3.5 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4 text-sky-500" />
+                  <span>Dùng thử Tra từ AI ngay</span>
+                </button>
+
+                <a
+                  href="/api/import/template"
+                  download
+                  className="px-5 py-3.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4 text-slate-400" />
+                  <span>Xem mẫu file CSV</span>
+                </a>
               </div>
 
-              <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
-                  <Shield className="w-5 h-5" />
+              {/* Feature Highlights Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-10 text-left">
+                <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
+                    Thuật toán SRS Anki 4 nút
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Lập lịch ôn tập ngắt quãng tối ưu theo múi giờ địa phương, hỗ trợ đầy đủ phím tắt và hoàn tác (Undo).
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
-                  Bảo mật & Quyền riêng tư
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Dữ liệu thẻ cá nhân được cô lập tuyệt đối. Admin quản trị cấp quyền mà không xem lén nội dung học tập.
-                </p>
+
+                <div 
+                  onClick={() => setGuestTab('dictionary')}
+                  className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-600 rounded-2xl shadow-xs cursor-pointer transition-all group"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1 group-hover:text-sky-600 dark:group-hover:text-sky-400 flex items-center gap-1.5">
+                    <span>Tra từ & Bài đọc Gemini AI</span>
+                    <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Tự động điền nghĩa, phân loại từ, phiên âm IPA và sinh đoạn văn ngữ cảnh lồng ghép đúng các từ vựng đang học. (Bấm để thử ngay)
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">
+                    Bảo mật & Quyền riêng tư
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Dữ liệu thẻ cá nhân được cô lập tuyệt đối. Admin quản trị cấp quyền mà không xem lén nội dung học tập.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )
         ) : (
           /* Authenticated Dashboard Views */
           <div>

@@ -1082,13 +1082,114 @@ export const onRequest = async (context: EventContext): Promise<Response> => {
     }
 
     // ---------------------------------------------------------
+    // ---------------------------------------------------------
     // AI DICTIONARY & CONTEXTUAL READING (GEMINI API)
     // ---------------------------------------------------------
+
+    async function callGeminiEdge(apiKey: string, prompt: string): Promise<{ text: string; modelUsed: string }> {
+      const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      let lastErrorMsg = '';
+
+      for (const model of models) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        // Attempt 1: with responseMimeType
+        try {
+          const geminiRes = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'aistudio-build',
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: 'application/json' },
+            }),
+          });
+
+          if (geminiRes.ok) {
+            const geminiData: any = await geminiRes.json();
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText && rawText.trim()) {
+              return { text: rawText.trim(), modelUsed: model };
+            }
+          } else {
+            const errText = await geminiRes.text();
+            lastErrorMsg = `[${model}] HTTP ${geminiRes.status}: ${errText.slice(0, 160)}`;
+          }
+        } catch (err: any) {
+          lastErrorMsg = `[${model}] ${err?.message || err}`;
+        }
+
+        // Attempt 2: without responseMimeType if attempt 1 encountered 503 or error
+        try {
+          const geminiRes = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'aistudio-build',
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+            }),
+          });
+
+          if (geminiRes.ok) {
+            const geminiData: any = await geminiRes.json();
+            const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText && rawText.trim()) {
+              return { text: rawText.trim(), modelUsed: model };
+            }
+          }
+        } catch {
+          // continue to next model
+        }
+      }
+
+      throw new Error(`Không thể kết nối đến Gemini AI (${lastErrorMsg || 'Lỗi kết nối máy chủ Google'})`);
+    }
+
+    // GET /api/ai/status - Diagnostic endpoint for Cloudflare Workers / Pages
+    if (pathname === '/api/ai/status' && method === 'GET') {
+      const rawKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '') || '';
+      const cleanKey = rawKey.trim().replace(/^["']|["']$/g, '');
+
+      if (!cleanKey) {
+        return json({
+          status: 'error',
+          hasKey: false,
+          message: 'Biến GEMINI_API_KEY chưa được thiết lập trên Cloudflare Workers / Settings.',
+          guide: 'Vào Cloudflare Dashboard > Workers & Pages > smartvocab > Settings > Variables and Secrets, thêm Secret GEMINI_API_KEY (hoặc chạy: npx wrangler secret put GEMINI_API_KEY).'
+        }, 200);
+      }
+
+      const maskedKey = cleanKey.length > 8 ? `${cleanKey.slice(0, 4)}...${cleanKey.slice(-4)}` : '****';
+      try {
+        const { text, modelUsed } = await callGeminiEdge(cleanKey, 'Ping. Respond with OK.');
+        return json({
+          status: 'ok',
+          hasKey: true,
+          maskedKey,
+          modelUsed,
+          testResponse: text.slice(0, 50),
+          message: 'Kết nối Google Gemini AI thành công và sẵn sàng phục vụ!'
+        });
+      } catch (err: any) {
+        return json({
+          status: 'error',
+          hasKey: true,
+          maskedKey,
+          message: 'Google Gemini từ chối API key hoặc kết nối thất bại.',
+          errorDetail: err.message || String(err),
+          suggestion: 'Vui lòng kiểm tra lại API key trên https://aistudio.google.com/app/apikey. Đảm bảo key còn hiệu lực và không bị khóa theo IP/Domain.'
+        }, 500);
+      }
+    }
 
     // POST /api/dictionary/lookup
     if (pathname === '/api/dictionary/lookup' && method === 'POST') {
       const user = await getAuthUser(request, env.DB);
-      if (!user) return error('Chưa đăng nhập.', 401);
+      // Allow guest lookup for trial; saving cards still requires authentication
 
       const body = await request.json().catch(() => ({})) as any;
       const term = (body.term || '').trim().slice(0, 60);
@@ -1096,14 +1197,26 @@ export const onRequest = async (context: EventContext): Promise<Response> => {
 
       // Check D1 cache first
       const cacheKey = `dict:${term.toLowerCase()}`;
-      const cached: any = await env.DB.prepare('SELECT payload_json FROM dictionary_cache WHERE cache_key = ? AND expires_at > ?').bind(cacheKey, Date.now()).first();
-      if (cached) {
-        return json({ success: true, ...JSON.parse(cached.payload_json), cached: true });
+      try {
+        const cached: any = await env.DB.prepare('SELECT payload_json FROM dictionary_cache WHERE cache_key = ? AND expires_at > ?').bind(cacheKey, Date.now()).first();
+        if (cached && cached.payload_json) {
+          const parsedCache = JSON.parse(cached.payload_json);
+          return json({
+            success: true,
+            data: parsedCache,
+            ...parsedCache,
+            fromCache: true,
+            cached: true,
+          });
+        }
+      } catch {
+        // Cache read fallback
       }
 
-      const apiKey = env.GEMINI_API_KEY;
+      const rawKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '') || '';
+      const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
       if (!apiKey) {
-        return error('Chưa cấu hình GEMINI_API_KEY trên Cloudflare Pages Settings.', 500);
+        return error('Chưa cấu hình GEMINI_API_KEY trên Cloudflare Settings hoặc biến môi trường.', 500);
       }
 
       // Prompt for Gemini
@@ -1128,36 +1241,30 @@ Trả về kết quả chuẩn định dạng JSON duy nhất không kèm markdo
   ]
 }`;
 
-      // Call Gemini API via native Edge fetch
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-      const geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      });
+      try {
+        const { text, modelUsed } = await callGeminiEdge(apiKey, prompt);
+        const cleanJson = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        if (!parsed.term) parsed.term = term;
 
-      if (!geminiRes.ok) {
-        const errText = await geminiRes.text();
-        return error(`Lỗi khi gọi Gemini AI: ${errText.slice(0, 150)}`, 500);
+        // Save to D1 cache for 30 days
+        const expiresAt = Date.now() + 30 * 86400000;
+        await env.DB.prepare(`
+          INSERT INTO dictionary_cache (cache_key, payload_json, model, prompt_version, created_at, expires_at)
+          VALUES (?, ?, ?, 'v4.3', ?, ?)
+          ON CONFLICT(cache_key) DO UPDATE SET payload_json = excluded.payload_json, expires_at = excluded.expires_at
+        `).bind(cacheKey, JSON.stringify(parsed), modelUsed, Date.now(), expiresAt).run().catch(() => {});
+
+        return json({
+          success: true,
+          data: parsed,
+          ...parsed,
+          fromCache: false,
+          cached: false,
+        });
+      } catch (err: any) {
+        return error(err.message || 'Lỗi khi tra cứu với Gemini AI.', 500);
       }
-
-      const geminiData: any = await geminiRes.json();
-      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      const cleanJson = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      // Save to D1 cache for 30 days
-      const expiresAt = Date.now() + 30 * 86400000;
-      await env.DB.prepare(`
-        INSERT INTO dictionary_cache (cache_key, payload_json, model, prompt_version, created_at, expires_at)
-        VALUES (?, ?, 'gemini-2.5-flash', 'v4.3', ?, ?)
-        ON CONFLICT(cache_key) DO UPDATE SET payload_json = excluded.payload_json, expires_at = excluded.expires_at
-      `).bind(cacheKey, JSON.stringify(parsed), Date.now(), expiresAt).run().catch(() => {});
-
-      return json({ success: true, ...parsed, cached: false });
     }
 
     // POST /api/reading/generate
@@ -1171,17 +1278,24 @@ Trả về kết quả chuẩn định dạng JSON duy nhất không kèm markdo
       let targetWords: string[] = [];
       if (Array.isArray(custom_words) && custom_words.length > 0) {
         targetWords = custom_words.map((w: string) => (w || '').trim()).filter(Boolean);
+      } else if (typeof custom_words === 'string' && custom_words.trim()) {
+        targetWords = custom_words.split(/[,;\n]/).map((w: string) => w.trim()).filter(Boolean);
+      } else if (Array.isArray(card_ids) && card_ids.length > 0) {
+        const placeholders = card_ids.map(() => '?').join(',');
+        const cardsRes = await env.DB.prepare(`SELECT term FROM cards WHERE user_id = ? AND id IN (${placeholders})`).bind(user.id, ...card_ids).all().catch(() => ({ results: [] }));
+        targetWords = (cardsRes.results || []).map((c: any) => c.term);
       } else {
-        const cardsRes = await env.DB.prepare('SELECT term FROM cards WHERE user_id = ? ORDER BY RANDOM() LIMIT 5').bind(user.id).all();
+        const cardsRes = await env.DB.prepare('SELECT term FROM cards WHERE user_id = ? ORDER BY RANDOM() LIMIT 5').bind(user.id).all().catch(() => ({ results: [] }));
         targetWords = (cardsRes.results || []).map((c: any) => c.term);
       }
 
       if (targetWords.length < 2) {
-        return error('Cần ít nhất 2 từ vựng để tạo bài đọc ngữ cảnh.');
+        return error('Cần ít nhất 2 từ vựng (chọn từ bộ thẻ hoặc nhập trực tiếp) để tạo bài đọc ngữ cảnh.');
       }
 
-      const apiKey = env.GEMINI_API_KEY;
-      if (!apiKey) return error('Chưa cấu hình GEMINI_API_KEY trên Cloudflare Pages Settings.', 500);
+      const rawKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '') || '';
+      const apiKey = rawKey.trim().replace(/^["']|["']$/g, '');
+      if (!apiKey) return error('Chưa cấu hình GEMINI_API_KEY trên Cloudflare Settings hoặc biến môi trường.', 500);
 
       const prompt = `Viết một đoạn văn tiếng Anh học thuật hoặc đời sống thú vị ở trình độ CEFR ${level}, chủ đề: "${topic}".
 Bắt buộc phải lồng ghép tự nhiên các từ vựng sau: ${targetWords.join(', ')}.
@@ -1202,42 +1316,33 @@ Trả về JSON duy nhất với cấu trúc:
   ]
 }`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-      const geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      });
+      try {
+        const { text, modelUsed } = await callGeminiEdge(apiKey, prompt);
+        const cleanJson = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const parsed = JSON.parse(cleanJson);
 
-      if (!geminiRes.ok) return error('Không thể tạo bài đọc lúc này.', 500);
+        const passageId = 'rd_' + crypto.randomUUID().slice(0, 8);
+        const now = Date.now();
+        await env.DB.prepare(`
+          INSERT INTO reading_passages (id, user_id, title, passage, level, topic, target_words_json, questions_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          passageId, user.id, parsed.title, parsed.passage, parsed.level || level,
+          parsed.topic || topic, JSON.stringify(targetWords), JSON.stringify(parsed.questions || []), now
+        ).run();
 
-      const geminiData: any = await geminiRes.json();
-      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      const cleanJson = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      const passageId = 'rd_' + crypto.randomUUID().slice(0, 8);
-      const now = Date.now();
-      await env.DB.prepare(`
-        INSERT INTO reading_passages (id, user_id, title, passage, level, topic, target_words_json, questions_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        passageId, user.id, parsed.title, parsed.passage, parsed.level || level,
-        parsed.topic || topic, JSON.stringify(targetWords), JSON.stringify(parsed.questions || []), now
-      ).run();
-
-      return json({
-        success: true,
-        reading: {
-          id: passageId,
-          ...parsed,
-          target_words: targetWords,
-          created_at: now,
-        },
-      });
+        return json({
+          success: true,
+          reading: {
+            id: passageId,
+            ...parsed,
+            target_words: targetWords,
+            created_at: now,
+          },
+        });
+      } catch (err: any) {
+        return error(err.message || 'Không thể tạo bài đọc lúc này. Vui lòng thử lại.', 500);
+      }
     }
 
     // GET /api/reading

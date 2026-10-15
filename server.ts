@@ -1370,8 +1370,42 @@ app.get('/api/study/stats', authMiddleware, (req: AuthenticatedRequest, res: Res
 // AI DICTIONARY & CONTEXTUAL READING ROUTES
 // -------------------------------------------------------------
 
+// Health check / Diagnostic endpoint for AI
+app.get('/api/ai/status', async (req: Request, res: Response) => {
+  const rawKey = process.env.GEMINI_API_KEY || '';
+  const cleanKey = rawKey.trim().replace(/^["']|["']$/g, '');
+
+  if (!cleanKey) {
+    return res.status(500).json({
+      status: 'error',
+      hasKey: false,
+      message: 'Chưa cấu hình GEMINI_API_KEY trong file .env hoặc biến môi trường.',
+    });
+  }
+
+  const maskedKey = cleanKey.length > 8 ? `${cleanKey.slice(0, 4)}...${cleanKey.slice(-4)}` : '****';
+  try {
+    const result = await aiProvider.lookup('hello');
+    return res.json({
+      status: 'ok',
+      hasKey: true,
+      maskedKey,
+      cached: result.fromCache,
+      message: 'Kết nối Google Gemini AI thành công và sẵn sàng phục vụ!',
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      status: 'error',
+      hasKey: true,
+      maskedKey,
+      message: 'Google Gemini từ chối API key hoặc kết nối thất bại.',
+      errorDetail: err.message,
+    });
+  }
+});
+
 // Tra từ AI (Gemini + Shared Cache) (FR-DC)
-app.post('/api/dictionary/lookup', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/dictionary/lookup', async (req: Request, res: Response) => {
   const { term } = req.body;
   if (!term || typeof term !== 'string' || !term.trim()) {
     return res.status(400).json({ error: 'Vui lòng cung cấp từ vựng cần tra cứu.' });
@@ -1381,7 +1415,7 @@ app.post('/api/dictionary/lookup', authMiddleware, async (req: AuthenticatedRequ
 
   try {
     const result = await aiProvider.lookup(cleanTerm);
-    return res.json({ success: true, ...result });
+    return res.json({ success: true, ...result, data: result.data });
   } catch (err: any) {
     return res.status(500).json({
       error: err.message || 'Không thể tra từ với AI lúc này. Bạn vẫn có thể điền thông tin thủ công.',
