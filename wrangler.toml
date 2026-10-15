@@ -1,13 +1,26 @@
 # Cloudflare Pages & D1 Configuration for SmartVocab.io
 name = "smartvocab"
+#compatibility_date = "2024-04-01"
+#pages_build_output_dir = "dist"
+main = "server/worker.ts"
 compatibility_date = "2024-04-01"
-pages_build_output_dir = "dist"
+
+# Native Cloudflare D1 Database Binding
+#[[d1_databases]]
+#binding = "DB"
+#database_name = "smartvocab-db"
+#database_id = "smartvocab-db"
+#database_name = "learnenglish"
+#database_id = "12903698-bea3-4358-9435-51b861f11c0f"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 # Native Cloudflare D1 Database Binding
 [[d1_databases]]
 binding = "DB"
-#database_name = "smartvocab-db"
-#database_id = "smartvocab-db"
 database_name = "learnenglish"
 database_id = "12903698-bea3-4358-9435-51b861f11c0f"
 
